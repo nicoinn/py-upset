@@ -100,6 +100,91 @@ def __get_all_common_columns(data_dict):
                          'intersections')
     return common_columns.unique()
 
+def plot_precomputed(data, *, unique_keys=None, sort_by='size', inters_size_bounds=(0, np.inf),
+         inters_degree_bounds=(1, np.inf), additional_plots=None, query=None):
+    """
+    Plots a main set of graph skipping the Dataextractor part, using as input
+    a dataframe of precomputed sets intersections
+
+    :data: a single dataframe with N+1 columns where
+        - the names of the N first columns are the names of the Nth first columns are the
+        - these columns contains N boolean variables representing the sets intersections
+        - the (N+1)th column must be called "count" and contains the sizes of the set intersections
+        NB: Make this more flexible in the future.
+
+    :param unique_keys: list. Specifies the names of the columns that, together, can uniquely identify a row. If left
+    empty, pyUpSet will try to use all common columns in the data frames and may possibly raise an exception (no
+    common columns) or produce unexpected results (columns in different data frames with same name but different
+    meanings/data).
+    :param sort_by: 'size' or 'degree'. The order in which to sort the intersection bar chart and matrix in the main
+    graph
+    :param inters_size_bounds: tuple. Specifies the size limits of the intersections that will be displayed.
+    Intersections (and relative data) whose size is outside the interval will not be plotted. Defaults to (0, np.inf).
+    :param inters_degree_bounds: tuple. Specified the degree limits of the intersections that will be displayed.
+    Intersections (and relative data) whose degree is outside the interval will not be plotted. Defaults to (0, np.inf).
+    :param additional_plots: list of dictionaries. See below for details.
+    :param query: list of tuples. See below for details.
+    :return: dictionary of matplotlib objects, namely the figure and the axes.
+    :raise ValueError: if no unique_keys are specified and the data frames have no common column names.
+    The syntax to specify additional plots follows the signature of the corresponding matplotlib method in an Axes
+    class. For each additional plot one specifies a dictionary with the kind of plot, the columns name to retrieve
+    relevant data and the kwargs to pass to the plot function, as in `{'kind':'scatter', 'data':{'x':'col_1',
+    'y':'col_2'}, 'kwargs':{'s':50}}`.
+    Currently supported additional plots: scatter.
+    It is also possible to highlight intersections. This is done through the `query` argument, where the
+    intersections to highligh must be specified with the names used as keys in the data_dict.
+    """
+
+    query = [] if query is None else query
+    ap = [] if additional_plots is None else additional_plots
+    #all_columns = unique_keys if unique_keys is not None else __get_all_common_columns(data_dict)
+    #all_columns = list(all_columns)
+
+
+    data = data.sort_values(by="count",ascending=False)
+    ordered_inters_sizes=data["count"].values
+
+    ordered_in_sets=[]
+    ordered_out_sets=[]
+    for index,row in data.iterrows():
+        ordered_in_sets.append([k for k, v in row.items() if v==True])
+        ordered_out_sets.append([k for k, v in row.items() if v==False])
+
+    collist = data.columns
+    collist = collist.drop("count")
+    vallist = []
+    for col in collist:
+        vallist.append(sum(data[data[col]==True]["count"].values))
+    d = dict(zip(collist,vallist))
+
+    ordered_dfs_sizes=[]
+    ordered_df_names=[]
+    for key, value in sorted(d.items(),key=lambda t: t[1]): # Note the () after items!
+        ordered_dfs_sizes.append(value)
+        ordered_df_names.append(key)
+
+
+
+    upset = UpSetPlot(len(ordered_df_names), len(ordered_in_sets), additional_plots, query)
+    fig_dict = upset.main_plot(ordered_dfs_sizes, ordered_df_names, ordered_in_sets, ordered_out_sets,
+                               ordered_inters_sizes)
+    fig_dict['additional'] = []
+
+
+    # ap = [{kind:'', data:{x:'', y:''}, s:'', ..., kwargs:''}]
+    for i, graph_settings in enumerate(ap):
+        plot_kind = graph_settings.pop('kind')
+        data_vars = graph_settings.pop('data_quantities')
+        graph_properties = graph_settings.get('graph_properties', {})
+        data_values = plot_data.extract_data_for(data_vars, query)
+        ax = upset.additional_plot(i, plot_kind, data_values, graph_properties, labels=data_vars)
+        fig_dict['additional'].append(ax)
+
+    return fig_dict
+
+
+
+
 
 class UpSetPlot():
     def __init__(self, rows, cols, additional_plots, query):
