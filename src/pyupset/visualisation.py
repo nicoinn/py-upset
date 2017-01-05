@@ -440,7 +440,8 @@ class UpSetPlot():
             ax.scatter(np.repeat(self.x_values[col_num], len(in_y)), in_y,
                        color=np.tile(self._color_for_query(frozenset(in_sets)), (len(in_y), 1)),s=300)
             ax.scatter(np.repeat(self.x_values[col_num], len(out_y)), out_y, color=self.greys[0], s=300)
-            ax.vlines(self.x_values[col_num], min(in_y), max(in_y), lw=3.5, color=self._color_for_query(frozenset(in_sets)))
+            if in_y: #Check that in_y is not empty - This enables to show elements that do not belong to any of the sets displayed
+                ax.vlines(self.x_values[col_num], min(in_y), max(in_y), lw=3.5, color=self._color_for_query(frozenset(in_sets)))
 
     def additional_plot(self, ax_index, kind, data_values, graph_args, *, labels=None):
         """
