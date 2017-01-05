@@ -60,9 +60,14 @@ def plot(data_dict, *, unique_keys=None, sort_by='size', inters_size_bounds=(0, 
         plot_data.get_filtered_intersections(sort_by,inters_size_bounds,inters_degree_bounds)
     ordered_dfs, ordered_df_names = plot_data.ordered_dfs, plot_data.ordered_df_names
 
-    upset = UpSetPlot(len(ordered_dfs), len(ordered_in_sets), additional_plots, query)
-    fig_dict = upset.main_plot(ordered_dfs, ordered_df_names, ordered_in_sets, ordered_out_sets,
+    ordered_dfs_sizes = [len(x) for x in ordered_dfs]
+
+
+    upset = UpSetPlot(len(ordered_df_names), len(ordered_in_sets), additional_plots, query)
+    fig_dict = upset.main_plot(ordered_dfs_sizes, ordered_df_names, ordered_in_sets, ordered_out_sets,
                                ordered_inters_sizes)
+
+
     fig_dict['additional'] = []
 
 
@@ -217,12 +222,12 @@ class UpSetPlot():
         query_zorder = self.query2zorder.get(query, 0)
         return query_zorder
 
-    def main_plot(self, ordered_dfs, ordered_df_names, ordered_in_sets, ordered_out_sets, ordered_inters_sizes):
+    def main_plot(self, ordered_dfs_sizes, ordered_df_names, ordered_in_sets, ordered_out_sets, ordered_inters_sizes):
         """
         Creates the main graph comprising bar plot of base set sizes, bar plot of intersection sizes and intersection
         matrix.
 
-        :param ordered_dfs: array of input data frames, sorted w.r.t. the sorting parameters provided by the user (if
+        :param ordered_dfs_sizes: ordered list of sizes of input data frames, sorted w.r.t. the sorting parameters provided by the user (if
         any)
 
         :param ordered_df_names: array of names of input data frames, sorted (as above)
@@ -237,7 +242,7 @@ class UpSetPlot():
 
         :return: dictionary containing figure and axes references.
         """
-        ylim = self._base_sets_plot(ordered_dfs, ordered_df_names)
+        ylim = self._base_sets_plot(ordered_dfs_sizes, ordered_df_names)
         self._table_names_plot(ordered_df_names, ylim)
         xlim = self._inters_sizes_plot(ordered_in_sets, ordered_inters_sizes)
         set_row_map = dict(zip(ordered_df_names, self.y_values))
@@ -279,7 +284,7 @@ class UpSetPlot():
         ax.axis('off')
 
 
-    def _base_sets_plot(self, sorted_sets, sorted_set_names):
+    def _base_sets_plot(self, sorted_sets_sizes, sorted_set_names):
         """
         Plots horizontal bar plot for base set sizes.
 
@@ -292,7 +297,7 @@ class UpSetPlot():
         height = .6
         bar_bottoms = self.y_values - height / 2
 
-        ax.barh(bar_bottoms, [len(x) for x in sorted_sets], height=height, color=self.greys[1])
+        ax.barh(bar_bottoms, sorted_sets_sizes, height=height, color=self.greys[1])
 
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0, 4))
 
